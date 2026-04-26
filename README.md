@@ -90,6 +90,24 @@ npm run seed
 npm run dev
 ```
 
+## Permanent Deployment
+
+The repository includes `render.yaml` for deploying the API as a Render web service.
+
+For this MySQL backend, create a hosted MySQL database first and add its connection string as `DATABASE_URL` during deployment:
+
+```text
+mysql://USER:PASSWORD@HOST:PORT/DATABASE
+```
+
+The deployment start command waits for the database, runs migrations, seeds demo users, and starts the API. After deployment, the Swagger URL will be:
+
+```text
+https://YOUR-SERVICE.onrender.com/swagger/index.html
+```
+
+Local upload storage is fine for a demo, but it is not durable on free web service filesystems. For long-lived uploaded files, set `STORAGE_DRIVER=s3` and configure the S3 variables.
+
 ## Seeded users
 
 | Role | Email | Password | Public endpoint key |
@@ -167,6 +185,20 @@ For local development, provide `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`. 
 To serve through a public bucket or CDN instead, set `AWS_S3_SIGNED_URLS=false` and provide `AWS_S3_PUBLIC_BASE_URL`, for example a CloudFront distribution or public bucket URL. `AWS_S3_ENDPOINT` and `AWS_S3_FORCE_PATH_STYLE=true` are included for LocalStack, MinIO, or other S3-compatible storage. `AWS_S3_ACL` is optional and should stay empty when the bucket has ACLs disabled.
 
 ## API quick start
+
+### Swagger UI
+
+Open the hosted Swagger UI at:
+
+```text
+http://localhost:4000/swagger/index.html
+```
+
+The raw OpenAPI file is still available at:
+
+```text
+http://localhost:4000/docs/openapi.yaml
+```
 
 ## Frontend demo console
 

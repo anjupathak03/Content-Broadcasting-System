@@ -1,5 +1,6 @@
 const express = require('express');
 const path = require('path');
+const swaggerUiDist = require('swagger-ui-dist');
 const helmet = require('helmet');
 const cors = require('cors');
 const morgan = require('morgan');
@@ -35,6 +36,11 @@ app.use('/uploads', express.static(config.uploadAbsoluteDir));
 app.use('/uploads', express.static(path.join(config.rootDir, 'uploads')));
 app.use('/docs', express.static(path.join(config.rootDir, 'docs')));
 app.use('/postman', express.static(path.join(config.rootDir, 'postman')));
+app.get('/swagger', (_req, res) => {
+  res.redirect('/swagger/index.html');
+});
+app.use('/swagger', express.static(path.join(config.rootDir, 'swagger')));
+app.use('/swagger', express.static(swaggerUiDist.getAbsoluteFSPath(), { index: false }));
 
 app.use('/content/live', publicLiveLimiter, publicRoutes);
 app.use('/api/content/live', publicLiveLimiter, publicRoutes);

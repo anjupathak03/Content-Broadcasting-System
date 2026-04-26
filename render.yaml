@@ -1,0 +1,31 @@
+services:
+  - type: web
+    name: content-broadcasting-system-api
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm run deploy:start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 7d
+      - key: STORAGE_DRIVER
+        value: local
+      - key: UPLOAD_DIR
+        value: uploads/content
+      - key: MAX_FILE_SIZE_MB
+        value: 10
+      - key: DEFAULT_ROTATION_MINUTES
+        value: 5
+      - key: PUBLIC_RATE_LIMIT_PER_MINUTE
+        value: 60
+      - key: REDIS_URL
+        value: ""
+      - key: LIVE_CACHE_TTL_SECONDS
+        value: 15
