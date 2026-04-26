@@ -1,0 +1,171 @@
+Content Broadcasting System - Architecture Notes
+
+1. Authentication and RBAC flow
+
+The system uses JWT authentication for protected routes. A user logs in with email and password. The password is checked with bcrypt against users.password_hash. On success, the API returns a signed JWT containing the user id and role.
+
+The authenticate middleware validates the Bearer token and loads the current user from the database. The authorize middleware enforces role-level access. Principal-only routes cannot be accessed by teachers, and teacher-only routes cannot be accessed by principals.
+
+Principal permissions:
+- Create users.
+- View all content.
+- View pending content.
+- Approve content.
+- Reject content with a rejection reason.
+- View analytics.
+
+Teacher permissions:
+- Upload content.
+- View only their uploaded content.
+- Update only their own content schedule.
+- See rejection reason for their rejected content.
+
+Public endpoints do not require authentication, but they only expose approved and currently scheduled content.
+
+2. Subject-based system design
+
+Each content item belongs to a subject. Subjects are normalized to lowercase. A teacher has an independent slot per subject. This means Teacher 1 Maths and Teacher 2 Maths are separate broadcast cycles.
+
+The content_slots table contains teacher_id and subject. The content_schedules table maps a content item to a slot and stores rotation_order and duration_minutes. This keeps rotation logic separate from the content metadata while still supporting teacher-specific public broadcasting.
+
+3. Upload handling approach
+
+The upload module supports two storage drivers selected by STORAGE_DRIVER:
+- local: Multer writes uploaded files to uploads/content. Express serves the files through /uploads.
+- s3: Multer keeps the validated upload in memory and storageService uploads it to S3 using the AWS SDK for JavaScript v3.
+
+The upload middleware validates:
+- The request has a file.
+- The extension and MIME type are JPG, PNG, or GIF.
+- The file size is within MAX_FILE_SIZE_MB.
+
+The database stores file_url, file_path, file type, and file size. For local storage, file_url is a relative /uploads URL and file_path is the local relative path. For S3 storage, file_url is stored internally as s3://bucket/key and file_path is the S3 object key. API serializers resolve that internal value to either a temporary signed GET URL or a public bucket/CDN URL based on AWS_S3_SIGNED_URLS and AWS_S3_PUBLIC_BASE_URL. If the database transaction fails after the file has been stored, the service deletes the local file or S3 object to avoid orphaned uploads.
+
+4. Approval workflow design
+
+New uploaded content is stored with status pending. It is not visible on public endpoints until a principal approves it.
+
+Approval changes:
+- status = approved
+- approved_by = principal id
+- approved_at = current timestamp
+- rejection_reason = null
+
+Rejection changes:
+- status = rejected
+- rejection_reason = required reason
+- approved_by = null
+- approved_at = null
+
+The content status lifecycle is represented by the status field with allowed values uploaded, pending, approved, and rejected. The upload API starts new content as pending because it is immediately ready for principal review after file validation and database insertion.
+
+5. Scheduling and rotation logic
+
+A content item is eligible for public broadcast only when all conditions are true:
+- It belongs to the requested teacher.
+- It is approved.
+- It has a start_time and end_time.
+- Current time is between start_time and end_time.
+- It is attached to a content schedule row.
+
+Each subject has an independent cycle. For a teacher and subject, the scheduler loads active content schedules ordered by rotation_order. It sums all duration_minutes values to calculate the full cycle length.
+
+Example:
+- Content A: 5 minutes
+- Content B: 10 minutes
+- Content C: 5 minutes
+- Total cycle: 20 minutes
+
+The current timestamp is compared against the earliest active start_time to calculate the offset inside the cycle. If the offset is 0-5 minutes, A is active. If it is 5-15 minutes, B is active. If it is 15-20 minutes, C is active. After 20 minutes, the cycle repeats.
+
+When a subject filter is present, the public API returns one active item for that subject. When no subject filter is present, it returns one active item per currently live subject for that teacher.
+
+6. Database design decisions
+
+users:
+- Stores principals and teachers.
+- role enforces RBAC.
+- public_slug supports URLs such as /content/live/teacher-1.
+
+contents:
+- Stores upload metadata, subject, owner, approval status, rejection reason, approval metadata, and time window.
+
+content_slots:
+- Stores teacher-specific subject slots.
+- Unique by teacher_id and subject.
+
+content_schedules:
+- Stores rotation order and duration.
+- Keeps scheduling data separate from core content metadata.
+
+content_broadcast_events:
+- Tracks public API usage for analytics.
+
+7. Folder structure
+
+src/config:
+Environment and MySQL connection setup.
+
+src/controllers:
+HTTP request handlers. Controllers keep transport concerns separate from business logic.
+
+src/services:
+Business rules for authentication, content, approval, scheduling, cache, analytics, and storage.
+
+src/models:
+SQL query functions and database access.
+
+src/middlewares:
+Authentication, authorization, validation, upload handling, rate limiting, and error handling.
+
+src/routes:
+Express route definitions grouped by module.
+
+src/utils:
+Shared constants, error classes, normalizers, async wrapper, and rotation helper.
+
+8. Middleware usage
+
+helmet:
+Adds common HTTP security headers.
+
+cors:
+Allows cross-origin access where needed.
+
+morgan:
+Logs HTTP requests in development.
+
+authenticate:
+Verifies JWT and loads the current user.
+
+authorize:
+Restricts routes by role.
+
+handleContentUpload:
+Handles multipart form uploads and file validation. It uses disk storage for local uploads and memory storage before S3 uploads.
+
+publicLiveLimiter:
+Rate-limits unauthenticated public live API traffic.
+
+errorHandler:
+Converts thrown errors into consistent JSON responses.
+
+9. Scalability approach
+
+Caching:
+The public live endpoint can be cached in Redis for a short TTL. Approval, rejection, upload, and schedule updates invalidate live cache keys for the affected teacher.
+
+Queues:
+For larger usage, analytics insertion can be moved to a queue so the public endpoint does not wait for analytics writes.
+
+File storage:
+Local storage is implemented as the default path. S3 storage is also implemented as an optional driver for production/cloud deployments. The database stores file_url, file_path, and storage_provider separately so public delivery and internal storage keys remain independent. S3 can use private buckets with signed URLs or public/CDN delivery when signed URLs are disabled.
+
+Database indexes:
+Indexes are included on content owner, subject, status, time windows, schedule slots, and analytics fields. These support common list, approval, and public-live queries.
+
+Horizontal scaling:
+The scheduler is deterministic based on database rows and current time, so multiple API instances return the same live item without shared in-memory state. Redis can be shared across instances for public endpoint caching.
+
+Security:
+Sensitive fields such as password_hash are never returned by API responses. Private routes require JWT. Public routes only expose approved live content and non-sensitive teacher data.

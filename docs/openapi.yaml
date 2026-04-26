@@ -1,0 +1,312 @@
+openapi: 3.0.3
+info:
+  title: Content Broadcasting System
+  version: 1.0.0
+servers:
+  - url: http://localhost:4000
+security:
+  - bearerAuth: []
+paths:
+  /health:
+    get:
+      security: []
+      summary: Health check
+      responses:
+        '200':
+          description: Server health status
+  /api/auth/login:
+    post:
+      security: []
+      summary: Login principal or teacher
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  example: principal@content-broadcasting-system.local
+                password:
+                  type: string
+                  example: Principal@123
+      responses:
+        '200':
+          description: JWT token and user profile
+  /api/auth/me:
+    get:
+      summary: Current authenticated user
+      responses:
+        '200':
+          description: Current user
+  /api/users:
+    post:
+      summary: Principal creates principal or teacher user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, email, password, role]
+              properties:
+                name:
+                  type: string
+                email:
+                  type: string
+                password:
+                  type: string
+                role:
+                  type: string
+                  enum: [principal, teacher]
+      responses:
+        '201':
+          description: User created
+    get:
+      summary: Principal lists users
+      parameters:
+        - in: query
+          name: role
+          schema:
+            type: string
+            enum: [principal, teacher]
+        - in: query
+          name: page
+          schema:
+            type: integer
+        - in: query
+          name: limit
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Users list
+  /api/content:
+    post:
+      summary: Teacher uploads content
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [title, subject, file]
+              properties:
+                title:
+                  type: string
+                subject:
+                  type: string
+                  example: maths
+                description:
+                  type: string
+                start_time:
+                  type: string
+                  format: date-time
+                end_time:
+                  type: string
+                  format: date-time
+                rotation_duration_minutes:
+                  type: integer
+                  example: 5
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '201':
+          description: Content uploaded and pending approval
+    get:
+      summary: Principal lists all content with filters
+      parameters:
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [uploaded, pending, approved, rejected]
+        - in: query
+          name: subject
+          schema:
+            type: string
+        - in: query
+          name: teacher_id
+          schema:
+            type: integer
+        - in: query
+          name: page
+          schema:
+            type: integer
+        - in: query
+          name: limit
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Content list
+  /api/content/mine:
+    get:
+      summary: Teacher lists own uploaded content
+      parameters:
+        - in: query
+          name: status
+          schema:
+            type: string
+        - in: query
+          name: subject
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Teacher content list
+  /api/content/pending:
+    get:
+      summary: Principal lists pending content
+      responses:
+        '200':
+          description: Pending content list
+  /api/content/{id}:
+    get:
+      summary: Principal or owner teacher gets one content item
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Content item
+  /api/content/{id}/schedule:
+    patch:
+      summary: Teacher updates own content schedule
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                start_time:
+                  type: string
+                  format: date-time
+                  nullable: true
+                end_time:
+                  type: string
+                  format: date-time
+                  nullable: true
+                rotation_duration_minutes:
+                  type: integer
+                rotation_order:
+                  type: integer
+      responses:
+        '200':
+          description: Schedule updated
+  /api/content/{id}/approve:
+    patch:
+      summary: Principal approves content
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Content approved
+  /api/content/{id}/reject:
+    patch:
+      summary: Principal rejects content
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason:
+                  type: string
+      responses:
+        '200':
+          description: Content rejected
+  /content/live/{teacherKey}:
+    get:
+      security: []
+      summary: Public teacher-specific live content endpoint
+      parameters:
+        - in: path
+          name: teacherKey
+          required: true
+          schema:
+            type: string
+          example: teacher-1
+        - in: query
+          name: subject
+          schema:
+            type: string
+          example: maths
+      responses:
+        '200':
+          description: Current live content or no content response
+  /api/content/live/{teacherKey}:
+    get:
+      security: []
+      summary: Public teacher-specific live content endpoint using API prefix
+      parameters:
+        - in: path
+          name: teacherKey
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: subject
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Current live content or no content response
+  /api/analytics/subjects:
+    get:
+      summary: Principal gets subject-wise analytics
+      parameters:
+        - in: query
+          name: from
+          schema:
+            type: string
+        - in: query
+          name: to
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Subject usage analytics
+  /api/analytics/content/{id}:
+    get:
+      summary: Principal gets content usage analytics
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Content usage analytics
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

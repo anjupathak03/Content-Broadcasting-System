@@ -1,0 +1,119 @@
+{
+  "info": {
+    "name": "Content Broadcasting System",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:4000" },
+    { "key": "principalToken", "value": "" },
+    { "key": "teacherToken", "value": "" },
+    { "key": "contentId", "value": "1" }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/health"
+      }
+    },
+    {
+      "name": "Auth - Principal Login",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"principal@content-broadcasting-system.local\",\n  \"password\": \"Principal@123\"\n}"
+        },
+        "url": "{{baseUrl}}/api/auth/login"
+      }
+    },
+    {
+      "name": "Auth - Teacher Login",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"teacher1@content-broadcasting-system.local\",\n  \"password\": \"Teacher@123\"\n}"
+        },
+        "url": "{{baseUrl}}/api/auth/login"
+      }
+    },
+    {
+      "name": "Teacher - Upload Content",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Authorization", "value": "Bearer {{teacherToken}}" }],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            { "key": "title", "value": "Algebra Practice", "type": "text" },
+            { "key": "subject", "value": "maths", "type": "text" },
+            { "key": "description", "value": "Class 8 worksheet", "type": "text" },
+            { "key": "start_time", "value": "2026-04-25T09:00:00+05:30", "type": "text" },
+            { "key": "end_time", "value": "2026-04-30T18:00:00+05:30", "type": "text" },
+            { "key": "rotation_duration_minutes", "value": "5", "type": "text" },
+            { "key": "file", "type": "file", "src": [] }
+          ]
+        },
+        "url": "{{baseUrl}}/api/content"
+      }
+    },
+    {
+      "name": "Teacher - My Content",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{teacherToken}}" }],
+        "url": "{{baseUrl}}/api/content/mine"
+      }
+    },
+    {
+      "name": "Principal - Pending Content",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{principalToken}}" }],
+        "url": "{{baseUrl}}/api/content/pending"
+      }
+    },
+    {
+      "name": "Principal - Approve Content",
+      "request": {
+        "method": "PATCH",
+        "header": [{ "key": "Authorization", "value": "Bearer {{principalToken}}" }],
+        "url": "{{baseUrl}}/api/content/{{contentId}}/approve"
+      }
+    },
+    {
+      "name": "Principal - Reject Content",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{principalToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"reason\": \"Please upload a clearer image.\"\n}"
+        },
+        "url": "{{baseUrl}}/api/content/{{contentId}}/reject"
+      }
+    },
+    {
+      "name": "Public - Live Content",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/content/live/teacher-1?subject=maths"
+      }
+    },
+    {
+      "name": "Principal - Subject Analytics",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{principalToken}}" }],
+        "url": "{{baseUrl}}/api/analytics/subjects"
+      }
+    }
+  ]
+}

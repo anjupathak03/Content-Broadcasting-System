@@ -1,0 +1,12 @@
+node_modules/
+.env
+download.jpeg
+Content Broadcasting System - Technical Assignment – Backend Developer.pdf
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.DS_Store
+coverage/
+uploads/content/*
+!uploads/content/.gitkeep
